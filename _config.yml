@@ -1,0 +1,184 @@
+# Site
+repository: joshwrightcodes/joshwrightcodes.github.io
+favicon: images/favicon.ico
+
+# Content configuration version
+version: 2
+
+# Personal info
+name: Joshua Wright
+title: Full Stack Developer
+email: josh@wright.codes
+website: josh.wright.codes
+website-link: https://josh.wright.codes
+
+# Dark Mode (true/false/never)
+darkmode: false
+
+# Social links
+# twitter_username: 
+github_username:  joshwrightcodes
+# stackoverflow_username: "00000001"
+# dribbble_username: jekyll
+# facebook_username: jekyll
+# flickr_username: jekyll
+# instagram_username: 
+linkedin_username: joshwrightau
+# xing_username: 
+# pinterest_username: 
+# youtube_username: 
+# googleplus_username: 
+# orcid_username: 
+
+# Additional icon links
+# additional_links:
+# - title:
+#   icon: 
+#   url: 
+# - title: 
+#   icon: font awesome brand icon name (eg. fab fa-twitter) (https://fontawesome.com/icons?d=gallery&m=free)
+#   url: Link url (eg. https://google.com)
+
+# Google Analytics and Tag Manager
+# Using more than one of these may cause issues with reporting
+# gtm: "GTM-0000000"
+gtag: "G-PMHJBY8TP7"
+# google_analytics: "UA-00000000-0"
+
+# About Section
+# about_title: About Me
+# about_profile_image: images/profile.jpg
+about_content: | # this will include new lines to allow paragraphs
+  Hi, my name's Josh and I am a passionate full-stack developer. I have several years domain experience within the manufacturing and communication sectors and
+  have previously led small and large teams. My most recent projects including a greenfields digital communication platform integrating several digital providers
+  into a single agnostic platform; and a ground up redevelopment of the core ERP for IVE Group's Data-Driven Communications division.
+
+  I am most comfortable working in the ,NET ecosystem but have worked with several languages including Java/Groovy, C/C++, and bash. 
+  and I am constantly looking at new technologies and approaches to projects including utilising bleeding edge
+  technologies such as as WebAssembly and gRPC.
+
+content:
+  - title: Projects # Title for the section
+    layout: list # Type of content section (list/text)
+    content:
+      - layout: left
+        title: IVErify
+        sub_title: IVE Group, Data-Driven Communications
+        description: | # this will include new lines to allow paragraphs
+          IVErify is a greenfields project designed to replace several legacy applications across four business units focusing on tracking and reconciliation of communication campaigns handled by IVE's Data-Driven
+          Communications business unit. It is expected to manage millions of personalised communications each year across a plethora of channels including mail, email, and SMS. It has multiple facets including integration
+          into IVE's data processing, manufacturing and client services areas. It also allows customers to view in real time the impact and engagement of their communication campaign across all steps in the customer's
+          journey within the campaign, including across multiple mediums (eg: Email redirected to Mail).
+
+          The project also includes a digitisation of the manufacturing workflow and a migration from a legacy batch-based processes to realtime fully integrated workflow encompassing operation scheduling, manufacturing
+          reconciliation & quality control and integration in to logistic partners such as Australia Post to streamline and expedite the time-to-market for customer campaigns.
+
+          IVErify is built around .NET 6 RESTful microservices, and Blazor WebAssembly web applications. It integrates with over 600 custom CCM applications managing automated and adhoc campaigns on behalf of
+          Tier 1 businesses such as Australia's Big 4 banks, leading energy companies, and mutliple levels of Australian government departments. Due to the nature of the data handled by IVErify it is designed around
+          security to ensure it is complaint with IVE's security accreditations including ISO27001.
+      - layout: left
+        title: Digital Communications Gateway
+        sub_title: IVE Group, Data-Driven Communications
+        description: | # this will include new lines to allow paragraphs
+          Digital Communications Gateway was born out of a need to monitor and manage personalised digital communications being sent directly from CCM applications to third party providers such as Salesforce Marketing
+          Cloud, Adobe Cloud, Amazon SES and Vision6. This was to provide:
+          - a standardised, agnostic interface internally for CCM applications to interface with which included proactive tracking and performance management and provide auditability to IVE and its clients
+          - increase visibility to clients by providing a real-time portal to clients, providing actionable insights into the performance of their campaign and engagement with the targeted recipeints.
+          
+          This platform is currently being used by two Australia State Governments to deliver essential communications to their constituents
+
+  - title: Experience # Title for the section
+    layout: list # Type of content section (list/text)
+    content:
+      - layout: left
+        title: IVE Group, Data-Driven Communications
+        link: https://www.ivegroup.com.au/our-services/data-driven-communications/
+        link_text: ivegroup.com.au
+        sub_title: Manager, Corporate Applications (National)
+        caption: October 2020 - Present
+        description: | # this will include new lines to allow paragraphs
+          -	Lead a diverse, cross-functional team focusing on corporate and product development for IVE DDC.
+          - Implemented national development standards including implementation of CI/CD pipelines, implementation of static code analysis during development and integration, implementation of code review process and migration to a common .NET technology stack.
+          - Design & implement a digital communication aggregation service (SMS/Email) allowing DCG developers to rapidly develop and integrate digital channels into customer campaigns with real-time feedback provided to customers via a Blazor WASM front end or REST API. Integrated platforms include Amazon SES, Salesforce Marketing Cloud, and Vision6.
+          - Design and implement a new platform to replace IVE DDC’s several MIS platforms (from multiple acquisitions). This project required integration into several existing CCM environments which are implemented in various languages (C#, bash, VB6, Python, Delphi, C, C++). The new platform is built in .NET 6 and uses Blazor WASM for the UI and follows Clean Architecture/Domain-Driven Design patterns.
+      
+      - layout: left
+        title: IVE Group, Data-Driven Communications
+        link: https://www.ivegroup.com.au/our-services/data-driven-communications/
+        link_text: ivegroup.com.au
+        sub_title: IT Manager (QLD)
+        caption: November 2019 - October 2020
+        description: | # this will include new lines to allow paragraphs
+          - Manage multiple teams in providing bespoke development services to IVE DDC’s clients to assist with delivering time-sensitive omnichannel communications campaigns for Tier-1 clients such as NAB, CBA, Transurban and ACT Government.
+          - Provide guidance and mentoring for technology staff and front-line managers as well as provide technical guidance for other areas of the DDC business.
+          - Provide sales support to the customer service teams nationally, including providing direct support to Tier-1 clients.
+          - Develop a standardised process for ETL processes within the QLD teams to help expedite time to market for campaigns and reduce repetitive work.
+          -	Educate staff on requirements under ISO27001
+
+      - layout: left
+        title: IVE Group, Data-Driven Communications
+        link: https://www.ivegroup.com.au/our-services/data-driven-communications/
+        link_text: ivegroup.com.au
+        sub_title: Development Team Leader (QLD)
+        caption: November 2018 - November 2019
+        description: | # this will include new lines to allow paragraphs
+          -	Lead cross-functional team of developers developing bespoke ETL and web applications for tier 1 national customers for essential and marketing communications across multiple channels (Mail, Email, SMS, Web) including customers such as Transurban, CBA, SRO Victoria, and ACT Revenue Office, 
+          - Provide technical guidance and mentorship to developers including professional development to ensure their skills remained industry relevant.
+          -	Engage with sales and customer support teams in analysing and designing solutions for customers directly or as part of a tendering process.
+          -	Work towards modernizing the team's processes and technology stack with a move towards .NET Core and clean architecture.
+
+      - layout: left
+        title: IVE Group, Data-Driven Communications
+        link: https://www.ivegroup.com.au/our-services/data-driven-communications/
+        link_text: ivegroup.com.au
+        sub_title: IT Team Leader (QLD)
+        caption: October 2016 - November 2018
+        description: | # this will include new lines to allow paragraphs
+          -	Lead cross-functional team of developers and document composition specialists, providing ETL and communication services for short run essential and marketing campaigns for major national businesses.
+          - Support team members with their professional development within the business and provide guidance and mentorship to junior and graduate staff.
+          - Assist leadership team with the consolidation of disparate interstate teams into a single "centre of excellence"
+
+      - layout: left
+        title: Fergies Print & Mail
+        sub_title: IT Manager
+        caption: December 2013 - October 2016
+        description: | # this will include new lines to allow paragraphs
+          -	Modernise company infrastructure, including migrating desktop environment to Windows 7, migrate/consolidate server environment to centralised HA vSphere cluster and off-site DR cluster, migrate phone platform from on-site PBX to Telstra TIPT VoIP solution, removal of legacy and unsupported software.
+          - Implementation of Automation platform for streamlining customer interactions for VDP products such as transactional mailing workflows and regular mailers.
+          -	Modernisation of internal toolsets separating the data, business logic and UI layers for reuse on other projects.
+          -	Implement new modern EFI ERP/MIS/CRM system and online store and improving supporting business processes.
+          - Development of custom tools to streamline, automate or generally improve manual processes, removing several manual touchpoints and reducing time required to produce work including a job creation tool integrated into the ERP and other systems, electronic WIP boards.
+
+
+  - title: Education # Title for the section
+    layout: list # Type of content section (list/text)
+    content:
+      - layout: left
+        title: Queensland University of Technology
+        caption: 2010 - 2014
+        sub_title: Bachelor of Information Technology
+        # quote: >
+        description: | # this will include new lines to allow paragraphs
+          Specialising in Software Development and Business Process Improvement with an interested in Parallel & High-Performance Computing.
+
+  - title: A Little More About Me
+    layout: text
+    content: | # this will include new lines to allow paragraphs
+      Alongside my interests in software development some of my other interests and hobbies are:
+      - Powerlifting
+      - Space & Spaceships
+      - Trains
+
+# Footer
+footer_show_references: true
+# references_title: References on request (Override references text)
+
+# Build settings
+remote_theme: sproogen/resume-theme
+
+sass:
+  sass_dir: _sass
+  style: compressed
+
+plugins:
+ - jekyll-seo-tag
