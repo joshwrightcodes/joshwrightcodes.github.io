@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Josh Wright</title>
+  <link rel="icon" href="images/favicon.ico">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <div class="page">
+    <header class="top">
+      <span class="name">Josh Wright</span>
+      <nav class="links" aria-label="Site">
+        <a href="#work">Work</a>
+        <a href="#open-source">Open source</a>
+        <a href="#career">Career</a>
+        <a href="https://github.com/joshwrightcodes">GitHub</a>
+        <a href="https://www.linkedin.com/in/joshwrightau">LinkedIn</a>
+        <a href="mailto:josh@wright.codes">josh@wright.codes</a>
+      </nav>
+    </header>
+
+    <main>
+      <div class="hero-grid">
+        <div>
+          <h1 class="headline">I build the systems other engineers ship through.</h1>
+          <p class="role">Staff Software Engineer (Platform) at Mitti, based in Sydney, Australia. I build internal tooling and developer platforms for 150 engineers: build and deploy systems, observability and infrastructure, mainly in Go. I previously built and ran systems in C#.</p>
+        </div>
+        <div>
+          <ol class="map route" aria-label="The path of a service from creation to production">
+            <li><a href="#create"><strong>Create in Backstage</strong></a><span>Live in under 15 minutes</span><i class="dot" aria-hidden="true"></i></li>
+            <li><a href="#build"><strong>Build on Kubernetes</strong></a><span>About 400 services</span><i class="dot" aria-hidden="true"></i></li>
+            <li><a href="#ship"><strong>Ship on ARM64</strong></a><span>95% of services</span><i class="dot" aria-hidden="true"></i></li>
+            <li><a href="#run"><strong>Run in cells</strong></a><span>New cell in under 30 minutes</span><i class="dot" aria-hidden="true"></i></li>
+            <li><a href="#observe"><strong>Observe with OpenTelemetry</strong></a><span>Brought into .NET services</span><i class="dot" aria-hidden="true"></i></li>
+          </ol>
+          <p class="route-branch"><i class="dot" aria-hidden="true"></i><a href="#orchard"><strong>bk-agent-stack-orchard</strong></a><span>Open source: a clean macOS VM for each job</span></p>
+        </div>
+      </div>
+
+      <section class="sec" id="work">
+        <h2 class="sec-title">Work at Mitti</h2>
+        <p class="sec-intro">These projects follow a backend service from the day it is created to the way it is observed in production.</p>
+
+        <article class="entry stop" id="create">
+          <div>
+            <h3 class="mark">Create in Backstage</h3>
+            <p class="meta"><strong>Project lead</strong>Backstage, MCP Actions</p>
+          </div>
+          <div>
+            <p>Creating a service through a custom CLI tool and a static pipeline took more than 24 hours, with multiple reviews and manual steps. I led the work to replace them with the Backstage scaffolder.</p>
+            <ul>
+              <li>A new service now reaches production, fully operational, in under 15 minutes.</li>
+              <li>A template and automated controls replaced the review of each service. The Platform team approves every template change through a pull request. Only a bot account can commit, its commits are signed, and each change must pass the existing PR checks.</li>
+              <li>I rolled out the Backstage MCP Actions backend, so that engineers can reach scaffolder operations and catalog data from MCP clients.</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="entry stop" id="build">
+          <div>
+            <h3 class="mark">Build on Kubernetes</h3>
+            <p class="meta"><strong>Project lead</strong>Buildkite, agent-stack-k8s, Go</p>
+          </div>
+          <div>
+            <p>I led the move of Buildkite from long-lived EC2 agents to agent-stack-k8s, in a central and isolated build account. About 400 polyglot backend services now share one standard build and deploy workflow.</p>
+            <p>Adoption came from removing work. We migrated services on behalf of their teams, and any team could still build its own plugin. An extensible plugin gave teams a golden path that took build and deploy concerns away from them.</p>
+            <ul>
+              <li><strong>Permissions:</strong> each pipeline and step holds only the permissions it needs.</li>
+              <li><strong>GitHub:</strong> all operations use scoped GitHub App credentials, and bots sign their commits.</li>
+              <li><strong>Secrets:</strong> a custom plugin retrieves AWS secrets, passes them to build steps and redacts them from output.</li>
+              <li><strong>Standards:</strong> a Go plugin approach with a reference design replaced disparate bash scripts.</li>
+              <li><strong>Coverage:</strong> plugins generate pipelines, and handle caching, web deploys, secrets, i18n and GitHub operations.</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="entry stop" id="ship">
+          <div>
+            <h3 class="mark">Ship on ARM64</h3>
+            <p class="meta"><strong>Project lead</strong>ko, .NET container support, distroless</p>
+          </div>
+          <div>
+            <p>I led the retooling of all backend services for multi-arch builds. 95% of them now run on ARM64, which delivers ongoing cost savings.</p>
+            <ul>
+              <li>Services moved to distroless images wherever supported, built with ko and .NET container support, which reduces their attack surface.</li>
+              <li>Services now integrate ASAP, Atlassian's service-to-service authentication protocol, directly.</li>
+              <li>Base images no longer carry the AWS CLI.</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="entry stop" id="run">
+          <div>
+            <h3 class="mark">Run in cells</h3>
+            <p class="meta"><strong>Key implementer</strong>Kubebuilder, Kubernetes, EKS</p>
+          </div>
+          <div>
+            <p>I was a key implementer of the core cell controller, a Kubernetes controller built with Kubebuilder that provisions standard environments for a cell-based architecture.</p>
+            <ul>
+              <li>A complete cell, including networking, security and EKS, is ready in under 30 minutes.</li>
+              <li>17 production cells have been provisioned this way.</li>
+              <li>This removed days of manual toil and Terraform work.</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="entry stop" id="observe">
+          <div>
+            <h3 class="mark">Observe with OpenTelemetry</h3>
+            <p class="meta">OpenTelemetry, .NET, Go</p>
+          </div>
+          <div>
+            <p>I pushed OpenTelemetry into the .NET services, and I advocate for aligning the Go services on the same open standards.</p>
+          </div>
+        </article>
+      </section>
+
+      <section class="sec">
+        <h2 class="sec-title">What I drive</h2>
+        <div class="drive">
+          <div>
+            <h3>Shared build standards for Go and C#</h3>
+            <p>I drove distroless adoption across both languages, standardised and modernised CI, and pushed OpenTelemetry into .NET. These standards reach 150 engineers.</p>
+          </div>
+          <div>
+            <h3>Extensible golden paths</h3>
+            <p>Templates give consumers of platform services a golden path, and leave room for teams with different needs.</p>
+          </div>
+          <div>
+            <h3>Trade-offs made on purpose</h3>
+            <p>Self-hosted macOS for Buildkite is considerably cheaper than hosted at list prices, but it has to be maintained, and each job needs a clean VM. I built bk-agent-stack-orchard for that, and accepted a controller to operate.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="sec">
+        <h2 class="sec-title">Skills</h2>
+        <p class="sec-intro">Go (Golang), C#, .NET, Kubernetes, Kubernetes operators, EKS, AWS, Terraform, infrastructure as code, Buildkite, Backstage, OpenTelemetry, observability, distributed tracing, Kubebuilder, ko, CI/CD, continuous delivery, build systems, platform engineering, internal developer platforms, internal tooling, developer experience, developer productivity.</p>
+      </section>
+
+      <section class="sec" id="open-source">
+        <h2 class="sec-title">Open source</h2>
+        <article class="entry stop entry--oss" id="orchard">
+          <div>
+            <h3 class="mark"><a href="https://github.com/joshwrightcodes/bk-agent-stack-orchard">bk-agent-stack-orchard</a></h3>
+            <p class="meta"><strong>Author and maintainer</strong>Go, Tart, Orchard, OpenTelemetry</p>
+          </div>
+          <div>
+            <p>A Buildkite stack controller that runs each macOS job in its own clean Tart VM through Orchard, and deletes the VM when the job ends. It applies the agent-stack-k8s model to macOS. It is an early release, currently v0.1.1.</p>
+            <ul>
+              <li>Each VM gets a short-lived token for its own job only.</li>
+              <li>The controller checks free VM slots before it reserves a job.</li>
+              <li>Metrics, traces and logs export through OpenTelemetry (OTLP).</li>
+              <li>A nightly load test runs 50 synthetic workers and 500 jobs.</li>
+              <li>Releases are signed, and the design is recorded in public <a href="https://github.com/joshwrightcodes/bk-agent-stack-orchard/blob/main/docs/adrs/README.md">architecture decisions</a>.</li>
+            </ul>
+          </div>
+        </article>
+      </section>
+
+      <section class="sec" id="career">
+        <h2 class="sec-title">Career</h2>
+        <p class="sec-intro">I came to engineering through operations. I designed and built production systems while I led teams and IT departments for eight years, then moved to full-time platform engineering in 2022.</p>
+
+        <ol class="map career-line" aria-label="Career from 2013 to 2024">
+          <li><strong><time datetime="2013">2013</time></strong><span>IT Manager</span><span>Fergies</span><i class="dot" aria-hidden="true"></i></li>
+          <li><strong><time datetime="2016">2016</time></strong><span>Team leader</span><span>IVE Group</span><i class="dot" aria-hidden="true"></i></li>
+          <li><strong><time datetime="2020">2020</time></strong><span>National manager</span><span>IVE Group</span><i class="dot" aria-hidden="true"></i></li>
+          <li><strong><time datetime="2022">2022</time></strong><span>Senior Engineer</span><span>SafetyCulture, now Mitti</span><i class="dot" aria-hidden="true"></i></li>
+          <li><strong><time datetime="2024">2024</time></strong><span>Staff Engineer</span><span>Promoted at Mitti</span><i class="dot" aria-hidden="true"></i></li>
+        </ol>
+
+        <article class="entry">
+          <div>
+            <h3>Mitti, formerly SafetyCulture</h3>
+            <p class="meta">January 2022 to present</p>
+          </div>
+          <div>
+            <p>Staff Software Engineer from May 2024. Before that, Senior Software Engineer on the Foundational/Platform team.</p>
+          </div>
+        </article>
+
+        <article class="entry">
+          <div>
+            <h3>IVE Group</h3>
+            <p class="meta">October 2016 to January 2022</p>
+          </div>
+          <div>
+            <p>I rose from team leader to national manager of corporate applications, and led cross-functional engineering teams.</p>
+            <ul>
+              <li>Set national engineering standards, including CI/CD pipelines, static analysis, code review and a common .NET stack.</li>
+              <li>Designed and built a .NET 6 and Blazor WebAssembly platform to replace several legacy systems, with integrations into more than 600 customer communication applications.</li>
+              <li>Designed and built a gateway for SMS and email that two Australian state governments used for essential communications.</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="entry">
+          <div>
+            <h3>Fergies Print &amp; Mail</h3>
+            <p class="meta">December 2013 to October 2016</p>
+          </div>
+          <div>
+            <p>As IT Manager, I consolidated servers onto a high-availability vSphere cluster with off-site disaster recovery, and built automation for production workflows.</p>
+          </div>
+        </article>
+
+        <article class="entry">
+          <div>
+            <h3>Earlier</h3>
+            <p class="meta">2007 to 2014</p>
+          </div>
+          <div>
+            <p>Operations and sales roles. Bachelor of Information Technology from Queensland University of Technology, 2011 to 2014.</p>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <p>Outside work: powerlifting, space and trains.</p>
+    </footer>
+  </div>
+</body>
+</html>

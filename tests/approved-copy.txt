@@ -1,0 +1,114 @@
+Josh Wright
+Work
+Open source
+Career
+GitHub
+LinkedIn
+josh@wright.codes
+I build the systems other engineers ship through.
+Staff Software Engineer (Platform) at Mitti, based in Sydney, Australia. I build internal tooling and developer platforms for 150 engineers: build and deploy systems, observability and infrastructure, mainly in Go. I previously built and ran systems in C#.
+Create in Backstage
+Live in under 15 minutes
+Build on Kubernetes
+About 400 services
+Ship on ARM64
+95% of services
+Run in cells
+New cell in under 30 minutes
+Observe with OpenTelemetry
+Brought into .NET services
+bk-agent-stack-orchard
+Open source: a clean macOS VM for each job
+Work at Mitti
+These projects follow a backend service from the day it is created to the way it is observed in production.
+Create in Backstage
+Project lead
+Backstage, MCP Actions
+Creating a service through a custom CLI tool and a static pipeline took more than 24 hours, with multiple reviews and manual steps. I led the work to replace them with the Backstage scaffolder.
+A new service now reaches production, fully operational, in under 15 minutes.
+A template and automated controls replaced the review of each service. The Platform team approves every template change through a pull request. Only a bot account can commit, its commits are signed, and each change must pass the existing PR checks.
+I rolled out the Backstage MCP Actions backend, so that engineers can reach scaffolder operations and catalog data from MCP clients.
+Build on Kubernetes
+Project lead
+Buildkite, agent-stack-k8s, Go
+I led the move of Buildkite from long-lived EC2 agents to agent-stack-k8s, in a central and isolated build account. About 400 polyglot backend services now share one standard build and deploy workflow.
+Adoption came from removing work. We migrated services on behalf of their teams, and any team could still build its own plugin. An extensible plugin gave teams a golden path that took build and deploy concerns away from them.
+Permissions:
+each pipeline and step holds only the permissions it needs.
+GitHub:
+all operations use scoped GitHub App credentials, and bots sign their commits.
+Secrets:
+a custom plugin retrieves AWS secrets, passes them to build steps and redacts them from output.
+Standards:
+a Go plugin approach with a reference design replaced disparate bash scripts.
+Coverage:
+plugins generate pipelines, and handle caching, web deploys, secrets, i18n and GitHub operations.
+Ship on ARM64
+Project lead
+ko, .NET container support, distroless
+I led the retooling of all backend services for multi-arch builds. 95% of them now run on ARM64, which delivers ongoing cost savings.
+Services moved to distroless images wherever supported, built with ko and .NET container support, which reduces their attack surface.
+Services now integrate ASAP, Atlassian's service-to-service authentication protocol, directly.
+Base images no longer carry the AWS CLI.
+Run in cells
+Key implementer
+Kubebuilder, Kubernetes, EKS
+I was a key implementer of the core cell controller, a Kubernetes controller built with Kubebuilder that provisions standard environments for a cell-based architecture.
+A complete cell, including networking, security and EKS, is ready in under 30 minutes.
+17 production cells have been provisioned this way.
+This removed days of manual toil and Terraform work.
+Observe with OpenTelemetry
+OpenTelemetry, .NET, Go
+I pushed OpenTelemetry into the .NET services, and I advocate for aligning the Go services on the same open standards.
+What I drive
+Shared build standards for Go and C#
+I drove distroless adoption across both languages, standardised and modernised CI, and pushed OpenTelemetry into .NET. These standards reach 150 engineers.
+Extensible golden paths
+Templates give consumers of platform services a golden path, and leave room for teams with different needs.
+Trade-offs made on purpose
+Self-hosted macOS for Buildkite is considerably cheaper than hosted at list prices, but it has to be maintained, and each job needs a clean VM. I built bk-agent-stack-orchard for that, and accepted a controller to operate.
+Skills
+Go (Golang), C#, .NET, Kubernetes, Kubernetes operators, EKS, AWS, Terraform, infrastructure as code, Buildkite, Backstage, OpenTelemetry, observability, distributed tracing, Kubebuilder, ko, CI/CD, continuous delivery, build systems, platform engineering, internal developer platforms, internal tooling, developer experience, developer productivity.
+Open source
+bk-agent-stack-orchard
+Author and maintainer
+Go, Tart, Orchard, OpenTelemetry
+A Buildkite stack controller that runs each macOS job in its own clean Tart VM through Orchard, and deletes the VM when the job ends. It applies the agent-stack-k8s model to macOS. It is an early release, currently v0.1.1.
+Each VM gets a short-lived token for its own job only.
+The controller checks free VM slots before it reserves a job.
+Metrics, traces and logs export through OpenTelemetry (OTLP).
+A nightly load test runs 50 synthetic workers and 500 jobs.
+Releases are signed, and the design is recorded in public architecture decisions
+Career
+I came to engineering through operations. I designed and built production systems while I led teams and IT departments for eight years, then moved to full-time platform engineering in 2022.
+2013
+IT Manager
+Fergies
+2016
+Team leader
+IVE Group
+2020
+National manager
+IVE Group
+2022
+Senior Engineer
+SafetyCulture, now Mitti
+2024
+Staff Engineer
+Promoted at Mitti
+Mitti, formerly SafetyCulture
+January 2022 to present
+Staff Software Engineer from May 2024. Before that, Senior Software Engineer on the Foundational/Platform team.
+IVE Group
+October 2016 to January 2022
+I rose from team leader to national manager of corporate applications, and led cross-functional engineering teams.
+Set national engineering standards, including CI/CD pipelines, static analysis, code review and a common .NET stack.
+Designed and built a .NET 6 and Blazor WebAssembly platform to replace several legacy systems, with integrations into more than 600 customer communication applications.
+Designed and built a gateway for SMS and email that two Australian state governments used for essential communications.
+Fergies Print & Mail
+December 2013 to October 2016
+As IT Manager, I consolidated servers onto a high-availability vSphere cluster with off-site disaster recovery, and built automation for production workflows.
+Earlier
+2007 to 2014
+Operations and sales roles. Bachelor of Information Technology from Queensland University of Technology, 2011 to 2014.
+Outside work: powerlifting, space and trains.
