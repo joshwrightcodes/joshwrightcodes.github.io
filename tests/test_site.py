@@ -1,5 +1,6 @@
 """Checks for the static site. Run with: python3 -m unittest discover -s tests -v"""
 import pathlib
+import re
 import unittest
 from html.parser import HTMLParser
 
@@ -122,6 +123,76 @@ class ContentTests(unittest.TestCase):
 
     def test_cname_unchanged(self):
         self.assertEqual((ROOT / "CNAME").read_text().strip(), "josh.wright.codes")
+
+
+PALETTES = {
+    "light": ("#F1F6F8", "#12263A", "#41566A", "#0B5CAD", "#B26A00", "#FFFFFF"),
+    "dark": ("#10222E", "#E8F0F4", "#AFC2CE", "#6CB2F2", "#F4B13D", "#10222E"),
+    "light-hc": ("#FFFFFF", "#000000", "#24343F", "#00408F", "#7A4300", "#FFFFFF"),
+    "dark-hc": ("#000000", "#FFFFFF", "#E3EBF0", "#9AD0FF", "#FFC95C", "#000000"),
+}
+TOKENS = ("bg", "ink", "muted", "line", "branch", "station")
+
+
+def stylesheet():
+    return (ROOT / "assets/site.css").read_text()
+
+
+def token_blocks():
+    """Return one tuple of token values for each CSS rule that sets --bg."""
+    blocks = []
+    for body in re.findall(r"\{([^{}]*--bg:[^{}]*)\}", stylesheet()):
+        values = dict(re.findall(r"--([a-z]+):\s*(#[0-9A-Fa-f]{6})", body))
+        blocks.append(tuple(values.get(token, "") for token in TOKENS))
+    return blocks
+
+
+def luminance(colour):
+    channels = [int(colour[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+    linear = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+
+def contrast(first, second):
+    lighter, darker = sorted((luminance(first), luminance(second)), reverse=True)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+class ThemeTests(unittest.TestCase):
+    def test_every_token_block_is_a_known_palette(self):
+        known = set(PALETTES.values())
+        self.assertEqual([b for b in token_blocks() if b not in known], [])
+
+    def test_all_four_palettes_exist(self):
+        self.assertEqual(set(token_blocks()), set(PALETTES.values()))
+
+    def test_contrast_targets(self):
+        for name, (bg, ink, muted, line, branch, _station) in PALETTES.items():
+            with self.subTest(name):
+                self.assertGreaterEqual(contrast(ink, bg), 7)
+                self.assertGreaterEqual(contrast(muted, bg), 7 if name.endswith("-hc") else 4.5)
+                self.assertGreaterEqual(contrast(line, bg), 3)
+                self.assertGreaterEqual(contrast(branch, bg), 3)
+
+
+class RequestTests(unittest.TestCase):
+    def test_no_third_party_requests(self):
+        parsed = page()
+        external = re.compile(r"^(https?:)?//")
+        requested = [
+            e["attrs"].get("href") or e["attrs"].get("src") or ""
+            for e in parsed.elements
+            if (e["tag"] == "link" and e["attrs"].get("rel") != "canonical") or e["tag"] in {"script", "img"}
+        ]
+        self.assertEqual([url for url in requested if external.match(url)], [])
+        self.assertNotIn("@import", stylesheet())
+        self.assertEqual(re.findall(r"url\(\s*['\"]?(?:https?:)?//[^)]*\)", stylesheet()), [])
+
+    def test_fonts_are_woff2(self):
+        fonts = list((ROOT / "assets/fonts").glob("*.woff2"))
+        self.assertTrue(fonts)
+        for font in fonts:
+            self.assertEqual(font.read_bytes()[:4], b"wOF2", font.name)
 
 
 if __name__ == "__main__":
