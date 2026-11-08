@@ -308,6 +308,50 @@ class AccessibilityTests(unittest.TestCase):
         self.assertEqual({k: v for k, v in names.items() if len(v) > 1}, {})
 
 
+GLOSSARY_TERMS = (
+    "ARM64", "ASAP", "Attack surface", "AWS", "Cell", "CI", "CI/CD", "CLI", "Controller", "Distributed tracing",
+    "Distroless", "EC2", "EKS", "Golden path", "i18n", "Infrastructure as code", "IT", "MCP", "Multi-arch",
+    "Observability", "OpenTelemetry", "OTLP", "Polyglot", "PR", "Scaffolder", "SMS", "Toil", "VM",
+)
+
+
+class FinalReviewTests(unittest.TestCase):
+    def test_glossary_defines_terms(self):
+        parsed = page()
+        terms = [normalise(e["text"]) for e in parsed.inside("dt", "glossary")]
+        definitions = [normalise(e["text"]) for e in parsed.inside("dd", "glossary")]
+        self.assertEqual(sorted(terms, key=str.lower), sorted(GLOSSARY_TERMS, key=str.lower))
+        self.assertEqual(len(definitions), len(terms))
+        self.assertTrue(all(definitions))
+
+    def test_glossary_is_linked_from_navigation(self):
+        self.assertIn("#glossary", [a["attrs"].get("href") for a in page().inside("a", "links")])
+
+    def test_print_resets_graphics_to_light_tokens(self):
+        rule = re.search(r"@media print \{.*\Z", stylesheet(), re.S).group(0)
+        self.assertIn("color-scheme: light", rule)
+        self.assertRegex(rule, r"--line:\s*#0B5CAD")
+        self.assertRegex(rule, r"--station:\s*#FFFFFF")
+
+    def test_link_targets_do_not_pad_the_focus_ring(self):
+        rule = re.search(r"\.route a, \.route-branch a, \.mark a \{[^}]*\}", stylesheet()).group(0)
+        self.assertNotIn("padding-block", rule)
+        self.assertRegex(stylesheet(), r"\.route a::after, \.route-branch a::after, \.mark a::after \{")
+
+    def test_adjacent_text_fragments_are_separated(self):
+        source = (ROOT / "index.html").read_text()
+        self.assertEqual(re.findall(r"</(?:strong|span|a)><span|</strong>[A-Za-z]", source), [])
+
+    def test_list_gap_uses_the_paragraph_font_size(self):
+        self.assertRegex(stylesheet(), r"\.entry ul \{[^}]*font-size: 1\.02rem")
+
+    def test_toggle_tracks_system_theme_changes(self):
+        self.assertIn('addEventListener("change"', (ROOT / "assets/theme.js").read_text())
+
+    def test_breakpoints_use_em(self):
+        self.assertEqual(re.findall(r"@media \(max-width: [0-9.]+px\)", stylesheet()), [])
+
+
 class MetadataTests(unittest.TestCase):
     def meta(self, name):
         return next(e["attrs"].get("content", "") for e in page().find("meta") if e["attrs"].get("name") == name)

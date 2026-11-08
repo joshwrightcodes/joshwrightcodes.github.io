@@ -41,5 +41,8 @@
       save(next);
       button.setAttribute("aria-pressed", String(next === "dark"));
     });
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+      button.setAttribute("aria-pressed", String(currentTheme() === "dark"));
+    });
   });
 })();
