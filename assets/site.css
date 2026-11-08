@@ -60,6 +60,22 @@ a:focus-visible, button:focus-visible { outline: 3px solid currentColor; outline
 .name { font-weight: 800; font-size: 1.1rem; }
 .links { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; font-size: .95rem; }
 .links a, .mark a, .map strong, .route-branch strong { overflow-wrap: anywhere; }
+.links { margin-left: auto; align-items: baseline; }
+
+#theme-toggle {
+  min-height: 44px;
+  min-width: 44px;
+  padding: .4rem .75rem;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: .95rem;
+  cursor: pointer;
+}
+#theme-toggle[aria-pressed="true"] { font-weight: 800; box-shadow: inset 0 -3px 0 currentColor; }
+#theme-toggle[hidden] { display: none; }
 
 .hero-grid {
   display: grid;

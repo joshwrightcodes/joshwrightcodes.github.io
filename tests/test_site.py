@@ -195,5 +195,30 @@ class RequestTests(unittest.TestCase):
             self.assertEqual(font.read_bytes()[:4], b"wOF2", font.name)
 
 
+class ToggleTests(unittest.TestCase):
+    def theme_script(self):
+        parsed = page()
+        scripts = [e for e in parsed.find("script") if e["attrs"].get("src") == "assets/theme.js"]
+        self.assertEqual(len(scripts), 1)
+        return scripts[0]
+
+    def test_theme_script_loads_blocking_in_head(self):
+        script = self.theme_script()
+        self.assertIn("head", [a["tag"] for a in script["ancestors"]])
+        self.assertNotIn("defer", script["attrs"])
+        self.assertNotIn("async", script["attrs"])
+
+    def test_toggle_hidden_without_javascript(self):
+        buttons = [e for e in page().find("button") if e["attrs"].get("id") == "theme-toggle"]
+        self.assertEqual(len(buttons), 1)
+        self.assertIn("hidden", buttons[0]["attrs"])
+        self.assertEqual(buttons[0]["attrs"].get("aria-pressed"), "false")
+
+    def test_page_has_no_other_scripts(self):
+        scripts = [e for e in page().find("script") if e["attrs"].get("type") != "application/ld+json"]
+        self.assertEqual([e["attrs"].get("src") for e in scripts], ["assets/theme.js"])
+        self.assertEqual(normalise(scripts[0]["text"]), "")
+
+
 if __name__ == "__main__":
     unittest.main()
