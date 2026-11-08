@@ -1,4 +1,5 @@
 """Checks for the static site. Run with: python3 -m unittest discover -s tests -v"""
+import json
 import pathlib
 import re
 import unittest
@@ -19,6 +20,7 @@ class Page(HTMLParser):
         self.text = []
         self.ids = {}
         self.headings = []
+        self.mismatched = []
 
     def _hidden_text(self):
         return any(e["tag"] in NO_TEXT_TAGS or e["attrs"].get("id") == "theme-toggle" for e in self.stack)
@@ -34,6 +36,8 @@ class Page(HTMLParser):
             self.headings.append(element)
 
     def handle_endtag(self, tag):
+        if not self.stack or self.stack[-1]["tag"] != tag:
+            self.mismatched.append(tag)
         while self.stack:
             if self.stack.pop()["tag"] == tag:
                 break
@@ -218,6 +222,71 @@ class ToggleTests(unittest.TestCase):
         scripts = [e for e in page().find("script") if e["attrs"].get("type") != "application/ld+json"]
         self.assertEqual([e["attrs"].get("src") for e in scripts], ["assets/theme.js"])
         self.assertEqual(normalise(scripts[0]["text"]), "")
+
+
+class MarkupTests(unittest.TestCase):
+    def test_parser_reports_mismatched_tags(self):
+        parsed = Page()
+        parsed.feed("<div><p></div>")
+        self.assertEqual(parsed.mismatched, ["div"])
+
+    def test_tags_are_balanced(self):
+        parsed = page()
+        self.assertEqual(parsed.mismatched, [])
+        self.assertEqual([e["tag"] for e in parsed.stack], [])
+
+    def test_ids_are_unique(self):
+        ids = [e["attrs"]["id"] for e in page().elements if "id" in e["attrs"]]
+        self.assertEqual(len(ids), len(set(ids)))
+
+
+class MetadataTests(unittest.TestCase):
+    def meta(self, name):
+        return next(e["attrs"].get("content", "") for e in page().find("meta") if e["attrs"].get("name") == name)
+
+    def json_ld(self):
+        scripts = [e for e in page().find("script") if e["attrs"].get("type") == "application/ld+json"]
+        self.assertEqual(len(scripts), 1)
+        return json.loads(scripts[0]["text"])
+
+    def test_title(self):
+        self.assertEqual(normalise(page().find("title")[0]["text"]), "Josh Wright, Staff Software Engineer (Platform)")
+
+    def test_meta_description(self):
+        description = self.meta("description")
+        self.assertIn("Go", description)
+        self.assertIn("Sydney", description)
+        self.assertLessEqual(len(description), 160)
+
+    def test_canonical(self):
+        links = [e for e in page().find("link") if e["attrs"].get("rel") == "canonical"]
+        self.assertEqual([e["attrs"]["href"] for e in links], ["https://josh.wright.codes/"])
+
+    def test_json_ld(self):
+        data = self.json_ld()
+        self.assertEqual(data["@context"], "https://schema.org")
+        self.assertEqual(data["@type"], "ProfilePage")
+        person = data["mainEntity"]
+        self.assertEqual(person["@type"], "Person")
+        self.assertEqual(person["name"], "Josh Wright")
+        self.assertEqual(person["jobTitle"], "Staff Software Engineer")
+        self.assertEqual(person["worksFor"]["name"], "Mitti")
+        self.assertEqual(person["alumniOf"]["name"], "Queensland University of Technology")
+        self.assertEqual(
+            set(person["sameAs"]),
+            {"https://github.com/joshwrightcodes", "https://www.linkedin.com/in/joshwrightau"},
+        )
+        self.assertTrue(person["knowsAbout"])
+
+    def test_robots(self):
+        robots = (ROOT / "robots.txt").read_text()
+        self.assertIn("User-agent: *", robots)
+        self.assertIn("Allow: /", robots)
+        self.assertNotIn("Disallow: /", robots)
+        self.assertIn("Sitemap: https://josh.wright.codes/sitemap.xml", robots)
+
+    def test_sitemap(self):
+        self.assertIn("<loc>https://josh.wright.codes/</loc>", (ROOT / "sitemap.xml").read_text())
 
 
 if __name__ == "__main__":
