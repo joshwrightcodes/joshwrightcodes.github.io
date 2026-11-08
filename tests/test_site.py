@@ -130,7 +130,7 @@ class ContentTests(unittest.TestCase):
 
 
 PALETTES = {
-    "light": ("#F1F6F8", "#12263A", "#41566A", "#0B5CAD", "#B26A00", "#FFFFFF"),
+    "light": ("#F1F6F8", "#12263A", "#3F5468", "#0B5CAD", "#B26A00", "#FFFFFF"),
     "dark": ("#10222E", "#E8F0F4", "#AFC2CE", "#6CB2F2", "#F4B13D", "#10222E"),
     "light-hc": ("#FFFFFF", "#000000", "#24343F", "#00408F", "#7A4300", "#FFFFFF"),
     "dark-hc": ("#000000", "#FFFFFF", "#E3EBF0", "#9AD0FF", "#FFC95C", "#000000"),
@@ -174,7 +174,7 @@ class ThemeTests(unittest.TestCase):
         for name, (bg, ink, muted, line, branch, _station) in PALETTES.items():
             with self.subTest(name):
                 self.assertGreaterEqual(contrast(ink, bg), 7)
-                self.assertGreaterEqual(contrast(muted, bg), 7 if name.endswith("-hc") else 4.5)
+                self.assertGreaterEqual(contrast(muted, bg), 7)
                 self.assertGreaterEqual(contrast(line, bg), 3)
                 self.assertGreaterEqual(contrast(branch, bg), 3)
 
@@ -238,6 +238,74 @@ class MarkupTests(unittest.TestCase):
     def test_ids_are_unique(self):
         ids = [e["attrs"]["id"] for e in page().elements if "id" in e["attrs"]]
         self.assertEqual(len(ids), len(set(ids)))
+
+
+ABBREVIATIONS = {
+    "ARM64": "64-bit Arm architecture",
+    "VM": "virtual machine",
+    "CLI": "command-line interface",
+    "MCP": "Model Context Protocol",
+    "PR": "pull request",
+    "EC2": "Elastic Compute Cloud",
+    "AWS": "Amazon Web Services",
+    "i18n": "internationalisation",
+    "ASAP": "Atlassian Service Authentication Protocol",
+    "EKS": "Elastic Kubernetes Service",
+    "CI": "continuous integration",
+    "CI/CD": "continuous integration and continuous delivery",
+    "OTLP": "OpenTelemetry Protocol",
+    "IT": "information technology",
+    "SMS": "short message service",
+}
+
+
+def syllables(word):
+    groups = re.findall(r"[aeiouy]+", word.lower())
+    count = len(groups)
+    if word.lower().endswith("e") and not word.lower().endswith("le") and count > 1:
+        count -= 1
+    return max(count, 1)
+
+
+def reading_grade(text):
+    """Flesch-Kincaid grade level."""
+    sentences = [s for s in re.split(r"[.!?]+\s*", text) if s.strip()]
+    words = re.findall(r"[A-Za-z][A-Za-z'-]*", text)
+    return 0.39 * len(words) / len(sentences) + 11.8 * sum(map(syllables, words)) / len(words) - 15.59
+
+
+class AccessibilityTests(unittest.TestCase):
+    def test_reading_grade_formula(self):
+        self.assertLess(reading_grade("The cat sat on the mat. The dog ran."), 3)
+        self.assertGreater(reading_grade("Organisational interoperability necessitates comprehensive standardisation."), 15)
+
+    def test_abbreviations_are_expanded(self):
+        found = {normalise(e["text"]): e["attrs"].get("title") for e in page().find("abbr")}
+        self.assertEqual({k: found.get(k) for k in ABBREVIATIONS}, ABBREVIATIONS)
+
+    def test_skip_link_comes_first(self):
+        parsed = page()
+        self.assertEqual(parsed.find("a")[0]["attrs"].get("href"), "#main")
+        self.assertEqual(parsed.find("main")[0]["attrs"].get("id"), "main")
+
+    def test_plain_language_summary(self):
+        parsed = page()
+        sections = [e for e in parsed.find("section") if e["attrs"].get("id") == "plain-language"]
+        self.assertEqual(len(sections), 1)
+        paragraphs = [p for p in parsed.find("p") if sections[0] in p["ancestors"]]
+        self.assertTrue(paragraphs)
+        self.assertLessEqual(reading_grade(" ".join(normalise(p["text"]) for p in paragraphs)), 9)
+
+    def test_plain_language_is_linked_from_navigation(self):
+        self.assertIn("#plain-language", [a["attrs"].get("href") for a in page().inside("a", "links")])
+
+    def test_link_names_are_distinct_by_destination(self):
+        parsed = page()
+        names = {}
+        for link in parsed.find("a"):
+            name = link["attrs"].get("aria-label") or normalise(link["text"])
+            names.setdefault(name, set()).add(link["attrs"].get("href"))
+        self.assertEqual({k: v for k, v in names.items() if len(v) > 1}, {})
 
 
 class MetadataTests(unittest.TestCase):
