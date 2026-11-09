@@ -5,8 +5,8 @@
 #   curl -fsSL https://josh.wright.codes/mac-bootstrap.sh | bash -s -- --profile work
 #
 # The script installs Homebrew and the GitHub CLI, signs in to GitHub, clones
-# the private repository and runs its update command. It skips each step that
-# is already done, so it is safe to run again.
+# or pulls the private repository and runs its update command. It skips each
+# step that is already done, so it is safe to run again.
 set -euo pipefail
 
 REPO="joshwrightcodes/mac-config"
@@ -46,7 +46,13 @@ main() {
 	fi
 	gh auth setup-git --hostname github.com
 
-	if [ ! -d "$DEST/.git" ]; then
+	if [ -d "$DEST/.git" ]; then
+		say "Pulling $REPO"
+		if ! git -C "$DEST" pull --ff-only; then
+			say "Could not update $DEST. Fix the checkout, then run this script again."
+			exit 1
+		fi
+	else
 		say "Cloning $REPO"
 		mkdir -p "$(dirname "$DEST")"
 		gh repo clone "$REPO" "$DEST"
