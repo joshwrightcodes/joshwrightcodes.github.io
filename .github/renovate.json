@@ -1,0 +1,31 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    ":semanticCommits",
+    ":semanticCommitScope(deps)"
+  ],
+  "timezone": "Australia/Sydney",
+  "schedule": [
+    "before 9am on monday"
+  ],
+  "enabledManagers": [
+    "custom.regex"
+  ],
+  "automerge": false,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "The reviewed commit of the Homebrew installer in mac-bootstrap.sh",
+      "managerFilePatterns": [
+        "/^mac-bootstrap\\.sh$/"
+      ],
+      "matchStrings": [
+        "https://raw\\.githubusercontent\\.com/Homebrew/install/(?<currentDigest>[0-9a-f]{40})/install\\.sh"
+      ],
+      "currentValueTemplate": "main",
+      "depNameTemplate": "Homebrew/install",
+      "packageNameTemplate": "https://github.com/Homebrew/install",
+      "datasourceTemplate": "git-refs"
+    }
+  ]
+}

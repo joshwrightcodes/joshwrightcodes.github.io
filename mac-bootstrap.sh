@@ -12,7 +12,8 @@ set -euo pipefail
 REPO="joshwrightcodes/mac-config"
 DEST="$HOME/ghq/github.com/$REPO"
 BREW="/opt/homebrew/bin/brew"
-# A reviewed commit of the official installer.
+# A reviewed commit of the official installer. Renovate proposes each new commit
+# in a pull request, for a person to review.
 BREW_INSTALLER="https://raw.githubusercontent.com/Homebrew/install/7986efac25016e41eed7e471666140c06f9d97cf/install.sh"
 
 say() {
@@ -30,6 +31,9 @@ main() {
 		/bin/bash -c "$(curl -fsSL "$BREW_INSTALLER")"
 	fi
 	eval "$("$BREW" shellenv)"
+
+	say "Updating Homebrew"
+	"$BREW" update
 
 	if ! command -v gh >/dev/null 2>&1; then
 		say "Installing the GitHub CLI"
