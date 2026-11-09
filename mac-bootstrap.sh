@@ -42,7 +42,11 @@ main() {
 
 	if ! gh auth status --hostname github.com >/dev/null 2>&1; then
 		say "Signing in to GitHub"
-		gh auth login --hostname github.com --web --git-protocol https
+		local protocol=https
+		case " $* " in
+		*" --profile work "*) protocol=ssh ;;
+		esac
+		gh auth login --hostname github.com --web --git-protocol "$protocol" --skip-ssh-key
 	fi
 	gh auth setup-git --hostname github.com
 
