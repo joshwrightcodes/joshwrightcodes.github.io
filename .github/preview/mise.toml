@@ -1,0 +1,6 @@
+[settings]
+locked = true
+lockfile_platforms = ["linux-x64", "macos-arm64"]
+
+[tools]
+node = "26.13.0"

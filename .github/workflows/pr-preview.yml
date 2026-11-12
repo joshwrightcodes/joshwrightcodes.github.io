@@ -1,0 +1,66 @@
+name: PR preview build
+
+# Collects the site files of each pull request, with no secrets and no environment. pr-preview-deploy.yml publishes
+# them. It runs on workflow_run, so it is always the copy on main, and pull request code never sees the Cloudflare token.
+#
+# Every run uploads pr-preview-meta (the pull request number). The deploy workflow treats that number as a hint and
+# checks the pull request through the API. Draft and fork pull requests upload only the metadata.
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, closed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Record the pull request number
+        env:
+          PR: ${{ github.event.pull_request.number }}
+        run: mkdir -p meta && echo "$PR" > meta/pr
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pr-preview-meta
+          path: meta/
+          retention-days: 3
+
+      - id: want
+        name: Build this pull request?
+        env:
+          ACTION: ${{ github.event.action }}
+          DRAFT: ${{ github.event.pull_request.draft }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          if [ "$ACTION" != closed ] && [ "$DRAFT" != true ] && [ "$SAME_REPO" = true ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No preview: action=$ACTION draft=$DRAFT same-repo=$SAME_REPO"
+          fi
+
+      - if: steps.want.outputs.build == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - if: steps.want.outputs.build == 'true'
+        name: Collect the site files
+        run: |
+          mkdir site
+          for path in index.html robots.txt sitemap.xml assets images; do
+            if [ -e "$path" ]; then cp -R "$path" site/; fi
+          done
+      - if: steps.want.outputs.build == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pr-preview-build
+          path: site/
+          retention-days: 3
+          if-no-files-found: error

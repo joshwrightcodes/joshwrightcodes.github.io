@@ -1,0 +1,202 @@
+name: PR preview deploy
+
+# Publishes each pull request to https://site-pr-<n>.wright.codes, and deletes the preview when the pull request closes.
+# One comment on the pull request carries the link, and each push updates it. Previews are open to anyone with the link,
+# and they ask search engines not to index them.
+#
+# Trust: GitHub always uses the copy of this file on main, and the preview-pr environment holds the Cloudflare token.
+# Nothing from the pull request runs here. The build provides static files only, and main writes the Worker settings.
+#
+# A daily sweep deletes any preview whose pull request has closed, in case a teardown failed.
+on:
+  workflow_run: # zizmor: ignore[dangerous-triggers] the job holds the token, and it runs no code from the pull request
+    workflows: [PR preview build]
+    types: [completed]
+  schedule:
+    - cron: "43 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ZONE: wright.codes
+  MARKER: "<!-- site-pr-preview -->"
+
+jobs:
+  resolve:
+    name: Which pull request, and what to do
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion != 'cancelled' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      pull-requests: read
+    outputs:
+      pr: ${{ steps.pr.outputs.pr }}
+      action: ${{ steps.pr.outputs.action }}
+      merged: ${{ steps.pr.outputs.merged }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: pr-preview-meta
+          path: ${{ runner.temp }}/meta
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        run: |
+          pr=$(head -c 16 "$RUNNER_TEMP/meta/pr" | tr -d '[:space:]')
+          [[ "$pr" =~ ^[0-9]{1,9}$ ]] || { echo "::error::pr-preview-meta does not hold a pull request number"; exit 1; }
+          json=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr}")
+          state=$(jq -r .state <<<"$json"); draft=$(jq -r .draft <<<"$json"); merged=$(jq -r .merged <<<"$json")
+          sha=$(jq -r .head.sha <<<"$json"); repo=$(jq -r .head.repo.full_name <<<"$json")
+          if [ "$state" = closed ]; then
+            action=teardown
+          elif [ "$repo" != "$GITHUB_REPOSITORY" ]; then
+            action=skip; echo "#$pr is from $repo"
+          elif [ "$draft" = true ]; then
+            action=skip; echo "#$pr is a draft"
+          elif [ "$sha" != "$HEAD_SHA" ]; then
+            action=skip; echo "#$pr is now at ${sha::7}, so the newer push deploys"
+          elif [ "$CONCLUSION" != success ]; then
+            action=skip; echo "::warning::The preview build for #$pr ended with ${CONCLUSION}"
+          else
+            action=deploy
+          fi
+          echo "#$pr ($state): $action"
+          { echo "pr=$pr"; echo "action=$action"; echo "merged=$merged"; } >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy preview
+    needs: resolve
+    if: needs.resolve.outputs.action == 'deploy'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    concurrency:
+      group: pr-preview-${{ needs.resolve.outputs.pr }}
+      cancel-in-progress: true
+    environment:
+      name: preview-pr
+      url: https://site-pr-${{ needs.resolve.outputs.pr }}.wright.codes
+    env:
+      PR: ${{ needs.resolve.outputs.pr }}
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check setup
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::The preview-pr environment needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (.github/preview/README.md)."
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
+        with:
+          version: 2026.10.24
+          working_directory: .github/preview
+      - name: Install wrangler
+        working-directory: .github/preview
+        run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: pr-preview-build
+          path: ${{ runner.temp }}/preview/site
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: Write the Worker settings from main
+        working-directory: .github/preview
+        run: node ../scripts/pr-preview-config.mjs "$PR" "$ZONE" "$RUNNER_TEMP/preview"
+      - name: Deploy
+        working-directory: .github/preview
+        run: npx --no-install wrangler deploy --config "$RUNNER_TEMP/preview/wrangler.json"
+      - name: Comment the link
+        run: |
+          url="https://site-pr-${PR}.${ZONE}"
+          body="${MARKER}
+          ### Preview
+          **${url}** · \`${SHA::7}\` · deployed $(date -u '+%a %d %b %H:%M UTC')
+
+          Open to anyone with the link. Each push updates it, and it is deleted when this pull request closes. A new hostname can take a few minutes to get its certificate."
+          bash .github/scripts/pr-comment.sh "$PR" "$body"
+
+  teardown:
+    name: Tear down preview
+    needs: resolve
+    if: needs.resolve.outputs.action == 'teardown'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    concurrency:
+      group: pr-preview-${{ needs.resolve.outputs.pr }}
+      cancel-in-progress: true
+    environment: preview-pr
+    env:
+      PR: ${{ needs.resolve.outputs.pr }}
+      MERGED: ${{ needs.resolve.outputs.merged }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+      - run: bash .github/scripts/pr-preview-teardown.sh "$PR"
+      - name: Update the comment
+        run: |
+          how=$([ "$MERGED" = "true" ] && echo merged || echo closed)
+          bash .github/scripts/pr-comment.sh "$PR" "${MARKER}
+          ### Preview
+          ~~https://site-pr-${PR}.${ZONE}~~ · deleted when this pull request was ${how}, $(date -u '+%a %d %b %H:%M UTC')." --only-update
+
+  sweep:
+    name: Sweep closed previews
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    environment: preview-pr
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+      - name: Delete previews whose pull request is closed
+        run: |
+          workers=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts" \
+            | jq -r '.result[].id | select(test("^site-pr-[0-9]+$"))')
+          echo "previews: ${workers:-none}"
+          failed=0
+          for w in $workers; do
+            pr=${w#site-pr-}
+            if state=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr}" -q .state 2>"$RUNNER_TEMP/err"); then :
+            elif grep -q 'HTTP 404' "$RUNNER_TEMP/err"; then state=missing
+            else echo "::error::Could not read #$pr: $(cat "$RUNNER_TEMP/err")"; failed=1; continue
+            fi
+            if [ "$state" != open ]; then echo "#$pr is $state"; bash .github/scripts/pr-preview-teardown.sh "$pr"; fi
+          done
+          exit "$failed"
