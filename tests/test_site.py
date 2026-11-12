@@ -1,0 +1,405 @@
+"""Checks for the static site. Run with: python3 -m unittest discover -s tests -v"""
+import json
+import pathlib
+import re
+import unittest
+from html.parser import HTMLParser
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
+NO_TEXT_TAGS = {"script", "style", "title"}
+
+
+class Page(HTMLParser):
+    """Parsed index.html: elements with their ancestors, and visible text."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.elements = []
+        self.stack = []
+        self.text = []
+        self.ids = {}
+        self.headings = []
+        self.mismatched = []
+
+    def _hidden_text(self):
+        return any(e["tag"] in NO_TEXT_TAGS or e["attrs"].get("id") == "theme-toggle" for e in self.stack)
+
+    def handle_starttag(self, tag, attrs):
+        element = {"tag": tag, "attrs": dict(attrs), "ancestors": list(self.stack), "text": ""}
+        self.elements.append(element)
+        if "id" in element["attrs"]:
+            self.ids[element["attrs"]["id"]] = len("".join(self.text))
+        if tag not in VOID_TAGS:
+            self.stack.append(element)
+        if tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
+            self.headings.append(element)
+
+    def handle_endtag(self, tag):
+        if not self.stack or self.stack[-1]["tag"] != tag:
+            self.mismatched.append(tag)
+        while self.stack:
+            if self.stack.pop()["tag"] == tag:
+                break
+
+    def handle_data(self, data):
+        for element in self.stack:
+            element["text"] += data
+        if not self._hidden_text():
+            self.text.append(data)
+
+    def find(self, tag):
+        return [e for e in self.elements if e["tag"] == tag]
+
+    def inside(self, tag, css_class):
+        def has_class(element):
+            return css_class in element["attrs"].get("class", "").split()
+
+        return [e for e in self.find(tag) if any(has_class(a) for a in e["ancestors"])]
+
+
+def page():
+    parsed = Page()
+    parsed.feed((ROOT / "index.html").read_text())
+    return parsed
+
+
+def normalise(text):
+    return " ".join(text.split())
+
+
+def visible_text(parsed=None):
+    parsed = parsed or page()
+    return normalise("".join(parsed.text))
+
+
+class ContentTests(unittest.TestCase):
+    def test_approved_copy_present(self):
+        text = visible_text()
+        missing = [
+            line
+            for line in (ROOT / "tests/approved-copy.txt").read_text().splitlines()
+            if line.strip() and normalise(line) not in text
+        ]
+        self.assertEqual(missing, [])
+
+    def test_single_h1(self):
+        headings = page().find("h1")
+        self.assertEqual(len(headings), 1)
+        self.assertEqual(normalise(headings[0]["text"]), "I build the systems other engineers ship through.")
+
+    def test_heading_levels_do_not_skip(self):
+        levels = [int(h["tag"][1]) for h in page().headings]
+        self.assertEqual(levels[0], 1)
+        for previous, current in zip(levels, levels[1:]):
+            self.assertLessEqual(current, previous + 1, f"{previous} then {current}")
+
+    def test_in_page_links_resolve(self):
+        parsed = page()
+        anchors = [a["attrs"]["href"][1:] for a in parsed.find("a") if a["attrs"].get("href", "").startswith("#")]
+        self.assertTrue(anchors)
+        self.assertEqual([a for a in anchors if a not in parsed.ids], [])
+
+    def test_required_links(self):
+        hrefs = {a["attrs"].get("href") for a in page().find("a")}
+        for target in (
+            "https://github.com/joshwrightcodes",
+            "https://www.linkedin.com/in/joshwrightau",
+            "mailto:josh@wright.codes",
+            "https://github.com/joshwrightcodes/bk-agent-stack-orchard",
+            "https://github.com/joshwrightcodes/bk-agent-stack-orchard/blob/main/docs/adrs/README.md",
+        ):
+            self.assertIn(target, hrefs)
+
+    def test_stations_link_to_entries(self):
+        hrefs = [a["attrs"]["href"] for a in page().inside("a", "route")]
+        self.assertEqual(hrefs, ["#create", "#build", "#ship", "#run", "#observe"])
+
+    def test_former_name_only_in_career(self):
+        parsed = page()
+        before_career = "".join(parsed.text)[: parsed.ids["career"]]
+        self.assertNotIn("SafetyCulture", before_career)
+
+    def test_jekyll_files_removed(self):
+        for name in ("_config.yml", "Gemfile", "index.md", "assets/main.scss"):
+            self.assertFalse((ROOT / name).exists(), name)
+        self.assertTrue((ROOT / ".nojekyll").exists())
+
+    def test_cname_unchanged(self):
+        self.assertEqual((ROOT / "CNAME").read_text().strip(), "josh.wright.codes")
+
+
+PALETTES = {
+    "light": ("#F1F6F8", "#12263A", "#3F5468", "#0B5CAD", "#B26A00", "#FFFFFF"),
+    "dark": ("#10222E", "#E8F0F4", "#AFC2CE", "#6CB2F2", "#F4B13D", "#10222E"),
+    "light-hc": ("#FFFFFF", "#000000", "#24343F", "#00408F", "#7A4300", "#FFFFFF"),
+    "dark-hc": ("#000000", "#FFFFFF", "#E3EBF0", "#9AD0FF", "#FFC95C", "#000000"),
+}
+TOKENS = ("bg", "ink", "muted", "line", "branch", "station")
+
+
+def stylesheet():
+    return (ROOT / "assets/site.css").read_text()
+
+
+def token_blocks():
+    """Return one tuple of token values for each CSS rule that sets --bg."""
+    blocks = []
+    for body in re.findall(r"\{([^{}]*--bg:[^{}]*)\}", stylesheet()):
+        values = dict(re.findall(r"--([a-z]+):\s*(#[0-9A-Fa-f]{6})", body))
+        blocks.append(tuple(values.get(token, "") for token in TOKENS))
+    return blocks
+
+
+def luminance(colour):
+    channels = [int(colour[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+    linear = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+
+def contrast(first, second):
+    lighter, darker = sorted((luminance(first), luminance(second)), reverse=True)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+class ThemeTests(unittest.TestCase):
+    def test_every_token_block_is_a_known_palette(self):
+        known = set(PALETTES.values())
+        self.assertEqual([b for b in token_blocks() if b not in known], [])
+
+    def test_all_four_palettes_exist(self):
+        self.assertEqual(set(token_blocks()), set(PALETTES.values()))
+
+    def test_contrast_targets(self):
+        for name, (bg, ink, muted, line, branch, _station) in PALETTES.items():
+            with self.subTest(name):
+                self.assertGreaterEqual(contrast(ink, bg), 7)
+                self.assertGreaterEqual(contrast(muted, bg), 7)
+                self.assertGreaterEqual(contrast(line, bg), 3)
+                self.assertGreaterEqual(contrast(branch, bg), 3)
+
+
+class RequestTests(unittest.TestCase):
+    def test_no_third_party_requests(self):
+        parsed = page()
+        external = re.compile(r"^(https?:)?//")
+        requested = [
+            e["attrs"].get("href") or e["attrs"].get("src") or ""
+            for e in parsed.elements
+            if (e["tag"] == "link" and e["attrs"].get("rel") != "canonical") or e["tag"] in {"script", "img"}
+        ]
+        self.assertEqual([url for url in requested if external.match(url)], [])
+        self.assertNotIn("@import", stylesheet())
+        self.assertEqual(re.findall(r"url\(\s*['\"]?(?:https?:)?//[^)]*\)", stylesheet()), [])
+
+    def test_fonts_are_woff2(self):
+        fonts = list((ROOT / "assets/fonts").glob("*.woff2"))
+        self.assertTrue(fonts)
+        for font in fonts:
+            self.assertEqual(font.read_bytes()[:4], b"wOF2", font.name)
+
+
+class ToggleTests(unittest.TestCase):
+    def theme_script(self):
+        parsed = page()
+        scripts = [e for e in parsed.find("script") if e["attrs"].get("src") == "assets/theme.js"]
+        self.assertEqual(len(scripts), 1)
+        return scripts[0]
+
+    def test_theme_script_loads_blocking_in_head(self):
+        script = self.theme_script()
+        self.assertIn("head", [a["tag"] for a in script["ancestors"]])
+        self.assertNotIn("defer", script["attrs"])
+        self.assertNotIn("async", script["attrs"])
+
+    def test_toggle_hidden_without_javascript(self):
+        buttons = [e for e in page().find("button") if e["attrs"].get("id") == "theme-toggle"]
+        self.assertEqual(len(buttons), 1)
+        self.assertIn("hidden", buttons[0]["attrs"])
+        self.assertEqual(buttons[0]["attrs"].get("aria-pressed"), "false")
+
+    def test_page_has_no_other_scripts(self):
+        scripts = [e for e in page().find("script") if e["attrs"].get("type") != "application/ld+json"]
+        self.assertEqual([e["attrs"].get("src") for e in scripts], ["assets/theme.js"])
+        self.assertEqual(normalise(scripts[0]["text"]), "")
+
+
+class MarkupTests(unittest.TestCase):
+    def test_parser_reports_mismatched_tags(self):
+        parsed = Page()
+        parsed.feed("<div><p></div>")
+        self.assertEqual(parsed.mismatched, ["div"])
+
+    def test_tags_are_balanced(self):
+        parsed = page()
+        self.assertEqual(parsed.mismatched, [])
+        self.assertEqual([e["tag"] for e in parsed.stack], [])
+
+    def test_ids_are_unique(self):
+        ids = [e["attrs"]["id"] for e in page().elements if "id" in e["attrs"]]
+        self.assertEqual(len(ids), len(set(ids)))
+
+
+ABBREVIATIONS = {
+    "ARM64": "64-bit Arm architecture",
+    "VM": "virtual machine",
+    "CLI": "command-line interface",
+    "MCP": "Model Context Protocol",
+    "PR": "pull request",
+    "EC2": "Elastic Compute Cloud",
+    "AWS": "Amazon Web Services",
+    "i18n": "internationalisation",
+    "ASAP": "Atlassian Service Authentication Protocol",
+    "EKS": "Elastic Kubernetes Service",
+    "CI": "continuous integration",
+    "CI/CD": "continuous integration and continuous delivery",
+    "OTLP": "OpenTelemetry Protocol",
+    "IT": "information technology",
+    "SMS": "short message service",
+}
+
+
+def syllables(word):
+    groups = re.findall(r"[aeiouy]+", word.lower())
+    count = len(groups)
+    if word.lower().endswith("e") and not word.lower().endswith("le") and count > 1:
+        count -= 1
+    return max(count, 1)
+
+
+def reading_grade(text):
+    """Flesch-Kincaid grade level."""
+    sentences = [s for s in re.split(r"[.!?]+\s*", text) if s.strip()]
+    words = re.findall(r"[A-Za-z][A-Za-z'-]*", text)
+    return 0.39 * len(words) / len(sentences) + 11.8 * sum(map(syllables, words)) / len(words) - 15.59
+
+
+class AccessibilityTests(unittest.TestCase):
+    def test_reading_grade_formula(self):
+        self.assertLess(reading_grade("The cat sat on the mat. The dog ran."), 3)
+        self.assertGreater(reading_grade("Organisational interoperability necessitates comprehensive standardisation."), 15)
+
+    def test_abbreviations_are_expanded(self):
+        found = {normalise(e["text"]): e["attrs"].get("title") for e in page().find("abbr")}
+        self.assertEqual({k: found.get(k) for k in ABBREVIATIONS}, ABBREVIATIONS)
+
+    def test_skip_link_comes_first(self):
+        parsed = page()
+        self.assertEqual(parsed.find("a")[0]["attrs"].get("href"), "#main")
+        self.assertEqual(parsed.find("main")[0]["attrs"].get("id"), "main")
+
+    def test_plain_language_summary(self):
+        parsed = page()
+        sections = [e for e in parsed.find("section") if e["attrs"].get("id") == "plain-language"]
+        self.assertEqual(len(sections), 1)
+        paragraphs = [p for p in parsed.find("p") if sections[0] in p["ancestors"]]
+        self.assertTrue(paragraphs)
+        self.assertLessEqual(reading_grade(" ".join(normalise(p["text"]) for p in paragraphs)), 9)
+
+    def test_plain_language_is_linked_from_navigation(self):
+        self.assertIn("#plain-language", [a["attrs"].get("href") for a in page().inside("a", "links")])
+
+    def test_link_names_are_distinct_by_destination(self):
+        parsed = page()
+        names = {}
+        for link in parsed.find("a"):
+            name = link["attrs"].get("aria-label") or normalise(link["text"])
+            names.setdefault(name, set()).add(link["attrs"].get("href"))
+        self.assertEqual({k: v for k, v in names.items() if len(v) > 1}, {})
+
+
+GLOSSARY_TERMS = (
+    "ARM64", "ASAP", "Attack surface", "AWS", "Cell", "CI", "CI/CD", "CLI", "Controller", "Distributed tracing",
+    "Distroless", "EC2", "EKS", "Golden path", "i18n", "Infrastructure as code", "IT", "MCP", "Multi-arch",
+    "Observability", "OpenTelemetry", "OTLP", "Polyglot", "PR", "Scaffolder", "SMS", "Toil", "VM",
+)
+
+
+class FinalReviewTests(unittest.TestCase):
+    def test_glossary_defines_terms(self):
+        parsed = page()
+        terms = [normalise(e["text"]) for e in parsed.inside("dt", "glossary")]
+        definitions = [normalise(e["text"]) for e in parsed.inside("dd", "glossary")]
+        self.assertEqual(sorted(terms, key=str.lower), sorted(GLOSSARY_TERMS, key=str.lower))
+        self.assertEqual(len(definitions), len(terms))
+        self.assertTrue(all(definitions))
+
+    def test_glossary_is_linked_from_navigation(self):
+        self.assertIn("#glossary", [a["attrs"].get("href") for a in page().inside("a", "links")])
+
+    def test_print_resets_graphics_to_light_tokens(self):
+        rule = re.search(r"@media print \{.*\Z", stylesheet(), re.S).group(0)
+        self.assertIn("color-scheme: light", rule)
+        self.assertRegex(rule, r"--line:\s*#0B5CAD")
+        self.assertRegex(rule, r"--station:\s*#FFFFFF")
+
+    def test_link_targets_do_not_pad_the_focus_ring(self):
+        rule = re.search(r"\.route a, \.route-branch a, \.mark a \{[^}]*\}", stylesheet()).group(0)
+        self.assertNotIn("padding-block", rule)
+        self.assertRegex(stylesheet(), r"\.route a::after, \.route-branch a::after, \.mark a::after \{")
+
+    def test_adjacent_text_fragments_are_separated(self):
+        source = (ROOT / "index.html").read_text()
+        self.assertEqual(re.findall(r"</(?:strong|span|a)><span|</strong>[A-Za-z]", source), [])
+
+    def test_list_gap_uses_the_paragraph_font_size(self):
+        self.assertRegex(stylesheet(), r"\.entry ul \{[^}]*font-size: 1\.02rem")
+
+    def test_toggle_tracks_system_theme_changes(self):
+        self.assertIn('addEventListener("change"', (ROOT / "assets/theme.js").read_text())
+
+    def test_breakpoints_use_em(self):
+        self.assertEqual(re.findall(r"@media \(max-width: [0-9.]+px\)", stylesheet()), [])
+
+
+class MetadataTests(unittest.TestCase):
+    def meta(self, name):
+        return next(e["attrs"].get("content", "") for e in page().find("meta") if e["attrs"].get("name") == name)
+
+    def json_ld(self):
+        scripts = [e for e in page().find("script") if e["attrs"].get("type") == "application/ld+json"]
+        self.assertEqual(len(scripts), 1)
+        return json.loads(scripts[0]["text"])
+
+    def test_title(self):
+        self.assertEqual(normalise(page().find("title")[0]["text"]), "Josh Wright, Staff Software Engineer (Platform)")
+
+    def test_meta_description(self):
+        description = self.meta("description")
+        self.assertIn("Go", description)
+        self.assertIn("Sydney", description)
+        self.assertLessEqual(len(description), 160)
+
+    def test_canonical(self):
+        links = [e for e in page().find("link") if e["attrs"].get("rel") == "canonical"]
+        self.assertEqual([e["attrs"]["href"] for e in links], ["https://josh.wright.codes/"])
+
+    def test_json_ld(self):
+        data = self.json_ld()
+        self.assertEqual(data["@context"], "https://schema.org")
+        self.assertEqual(data["@type"], "ProfilePage")
+        person = data["mainEntity"]
+        self.assertEqual(person["@type"], "Person")
+        self.assertEqual(person["name"], "Josh Wright")
+        self.assertEqual(person["jobTitle"], "Staff Software Engineer")
+        self.assertEqual(person["worksFor"]["name"], "Mitti")
+        self.assertEqual(person["alumniOf"]["name"], "Queensland University of Technology")
+        self.assertEqual(
+            set(person["sameAs"]),
+            {"https://github.com/joshwrightcodes", "https://www.linkedin.com/in/joshwrightau"},
+        )
+        self.assertTrue(person["knowsAbout"])
+
+    def test_robots(self):
+        robots = (ROOT / "robots.txt").read_text()
+        self.assertIn("User-agent: *", robots)
+        self.assertIn("Allow: /", robots)
+        self.assertNotIn("Disallow: /", robots)
+        self.assertIn("Sitemap: https://josh.wright.codes/sitemap.xml", robots)
+
+    def test_sitemap(self):
+        self.assertIn("<loc>https://josh.wright.codes/</loc>", (ROOT / "sitemap.xml").read_text())
+
+
+if __name__ == "__main__":
+    unittest.main()
